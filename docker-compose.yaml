@@ -1,9 +1,19 @@
 version: '3.8'
 services:
-  api:
+  paxray-api:
     build:
       context: .
     container_name: paxray-api
+    volumes:
+      - ./testdata.db:/app/testdata.db
     ports:
       - 5000:5000
+    depends_on:
+      - paxray-api-tests
+
+  paxray-api-tests:
+    build:
+      context: .
+    container_name: paxray-api-tests
+    command: python3 test.py
 
