@@ -1,3 +1,7 @@
+"""
+-- Paxray Backend Test --
+"""
+
 import os
 from dataclasses import dataclass
 from datetime import datetime
@@ -80,17 +84,20 @@ def copyPasteAnalysis():
     return countCopyPasteEvents(data)
 
 
+#### SPACE FOR CUSTOM METHODS ####
+
+
 def countCopyPasteEvents(data):
     df = pd.DataFrame(data)
+
+    df_copying_filter = df["eventtype"].isin(["CTRL + C", "CTRL + X"]) | (
+        (df["eventtype"] == "Left-Down") & (df["acceleratorkey"] == "STRG+C")
+    )
 
     """
     Add another auxiliary column 'fromApplicationname',
     to prefill the application name of the last copied/cut eventtype into all of the rows
     """
-    df_copying_filter = df["eventtype"].isin(["CTRL + C", "CTRL + X"]) | (
-        (df["eventtype"] == "Left-Down") & (df["acceleratorkey"] == "STRG+C")
-    )
-
     df["fromApplicationname"] = (
         df["applicationname"].where(df_copying_filter).groupby(df["userid"]).ffill()
     )
@@ -108,7 +115,7 @@ def countCopyPasteEvents(data):
     Note that now df contains 'fromApplicationname'
     which will contain the pair of the last copied/cut applicationname
     """
-    df_transitions = df[
+    df = df[
         (df["eventtype"] == "CTRL + V") & (df["fromApplicationname"].notna())
     ]
 
@@ -116,7 +123,7 @@ def countCopyPasteEvents(data):
     If there are duplicates in a segment, particularly by the
     groupid (cumulative sum throughout `isCopying`), then drop the duplicates.
     """
-    df_transitions = df_transitions.drop_duplicates(
+    df = df.drop_duplicates(
         subset=["groupid", "userid", "fromApplicationname", "applicationname"]
     )
 
@@ -125,7 +132,7 @@ def countCopyPasteEvents(data):
     then perform count aggregation
     """
     counts = (
-        df_transitions.groupby(["fromApplicationname", "applicationname"])
+        df.groupby(["fromApplicationname", "applicationname"])
         .size()
         .reset_index(name="count")
     )
