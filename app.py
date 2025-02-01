@@ -7,12 +7,11 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from dataclasses import dataclass
 
+basedir = os.path.abspath(os.path.dirname(__file__))
+sqlitedir = f"sqlite:///{os.path.join(basedir, 'testdata.db')}"
 
 app = Flask(__name__)
-basedir = os.path.abspath(os.path.dirname(__file__))
-app.config[
-    "SQLALCHEMY_DATABASE_URI"
-] = f"sqlite:///{os.path.join(basedir, 'testdata.db')}"
+app.config["SQLALCHEMY_DATABASE_URI"] = sqlitedir
 
 db = SQLAlchemy(app)
 
@@ -78,6 +77,11 @@ def copyPasteAnalysis():
         .all()
     )
 
+    counts = countCopyPasteEvents(data)
+    return counts.to_dict("records")
+
+
+def countCopyPasteEvents(data):
     df = pd.DataFrame(data)
 
     """
@@ -99,7 +103,7 @@ def copyPasteAnalysis():
     Note that now df contains 'from_applicationname'
     which will contain the pair of the last copied/cut applicationname
     """
-    paste_events = df[
+    dfPasteEvents = df[
         (df["eventtype"] == "CTRL + V") & (df["from_applicationname"].notna())
     ]
 
@@ -107,7 +111,7 @@ def copyPasteAnalysis():
     Group paste_events by from_applicationname and applicationname and perform count aggregation
     """
     counts = (
-        paste_events.groupby(["from_applicationname", "applicationname"])
+        dfPasteEvents.groupby(["from_applicationname", "applicationname"])
         .size()
         .reset_index(name="count")
     )
@@ -115,7 +119,7 @@ def copyPasteAnalysis():
         columns={"from_applicationname": "from", "applicationname": "to"}
     )
 
-    return counts.to_dict("records")
+    return counts
 
 
 if __name__ == "__main__":
