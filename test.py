@@ -60,7 +60,7 @@ class TestCountCopyPasteEvents(unittest.TestCase):
         ]
 
         counts = countCopyPasteEvents(mock)
-        self.assertCountEqual(expect, counts.to_dict("records"))
+        self.assertCountEqual(expect, counts)
 
     def testConsecutiveCopies(self):
         mock = [
@@ -76,14 +76,14 @@ class TestCountCopyPasteEvents(unittest.TestCase):
                 "eventtype": "CTRL + V",
                 "userid": "5afdc668c00128b62f5136db9201953d69a4a43919684dfbef3955a570f9e2fe6d9f70e38456ec9d1065a26359e96643c7eff014be753738fd4d0db3f0a7f74f",
                 "acceleratorkey": None,
-                "applicationname": "outlook",
+                "applicationname": "excel",
             },
             {
                 "timestamp": datetime.fromisoformat("2022-07-13 17:53:15.068586"),
                 "eventtype": "CTRL + V",
                 "userid": "5afdc668c00128b62f5136db9201953d69a4a43919684dfbef3955a570f9e2fe6d9f70e38456ec9d1065a26359e96643c7eff014be753738fd4d0db3f0a7f74f",
                 "acceleratorkey": None,
-                "applicationname": "excel",
+                "applicationname": "outlook",
             },
             {
                 "timestamp": datetime.fromisoformat("2022-07-13 17:54:15.068586"),
@@ -99,7 +99,7 @@ class TestCountCopyPasteEvents(unittest.TestCase):
         ]
 
         counts = countCopyPasteEvents(mock)
-        self.assertCountEqual(expect, counts.to_dict("records"))
+        self.assertCountEqual(expect, counts)
 
     def testDifferentUsers(self):
         mock = [
@@ -137,7 +137,7 @@ class TestCountCopyPasteEvents(unittest.TestCase):
         ]
 
         counts = countCopyPasteEvents(mock)
-        self.assertCountEqual(expect, counts.to_dict("records"))
+        self.assertCountEqual(expect, counts)
 
     def testCopyWithoutPasting(self):
         mock = [
@@ -159,7 +159,7 @@ class TestCountCopyPasteEvents(unittest.TestCase):
         expect = []
 
         counts = countCopyPasteEvents(mock)
-        self.assertCountEqual(expect, counts.to_dict("records"))
+        self.assertCountEqual(expect, counts)
 
 
 if __name__ == "__main__":

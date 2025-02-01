@@ -1,11 +1,11 @@
 import os
-import pandas as pd
+from dataclasses import dataclass
 from datetime import datetime
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from dataclasses import dataclass
+import pandas as pd
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 sqlitedir = f"sqlite:///{os.path.join(basedir, 'testdata.db')}"
@@ -77,49 +77,63 @@ def copyPasteAnalysis():
         .all()
     )
 
-    counts = countCopyPasteEvents(data)
-    return counts.to_dict("records")
+    return countCopyPasteEvents(data)
 
 
 def countCopyPasteEvents(data):
     df = pd.DataFrame(data)
 
     """
-    Add another auxiliary column 'from_applicationname',
+    Add another auxiliary column 'fromApplicationname',
     to prefill the application name of the last copied/cut eventtype into all of the rows
     """
-    df["from_applicationname"] = (
-        df["applicationname"]
-        .where(
-            df["eventtype"].isin(["CTRL + C", "CTRL + X"])
-            | ((df["eventtype"] == "Left-Down") & (df["acceleratorkey"] == "STRG+C"))
-        )
-        .groupby(df["userid"])
-        .ffill()
+    df_copying_filter = df["eventtype"].isin(["CTRL + C", "CTRL + X"]) | (
+        (df["eventtype"] == "Left-Down") & (df["acceleratorkey"] == "STRG+C")
+    )
+
+    df["fromApplicationname"] = (
+        df["applicationname"].where(df_copying_filter).groupby(df["userid"]).ffill()
     )
 
     """
+    Flag whether a new copying event has occurred on each row of the DataFrame.
+    Utilize cumsum (Cumulative Sum) to create an identifier for
+    a segment of each copy/paste action
+    """
+    df["isCopying"] = df_copying_filter
+    df["groupid"] = df["isCopying"].cumsum()
+
+    """
     Filter such that df only contains the eventtype of 'CTRL + V'.
-    Note that now df contains 'from_applicationname'
+    Note that now df contains 'fromApplicationname'
     which will contain the pair of the last copied/cut applicationname
     """
-    dfPasteEvents = df[
-        (df["eventtype"] == "CTRL + V") & (df["from_applicationname"].notna())
+    df_transitions = df[
+        (df["eventtype"] == "CTRL + V") & (df["fromApplicationname"].notna())
     ]
 
     """
-    Group paste_events by from_applicationname and applicationname and perform count aggregation
+    If there are duplicates in a segment, particularly by the
+    groupid (cumulative sum throughout `isCopying`), then drop the duplicates.
+    """
+    df_transitions = df_transitions.drop_duplicates(
+        subset=["groupid", "userid", "fromApplicationname", "applicationname"]
+    )
+
+    """
+    Group paste_events by fromApplicationname and applicationname,
+    then perform count aggregation
     """
     counts = (
-        dfPasteEvents.groupby(["from_applicationname", "applicationname"])
+        df_transitions.groupby(["fromApplicationname", "applicationname"])
         .size()
         .reset_index(name="count")
     )
     counts = counts.rename(
-        columns={"from_applicationname": "from", "applicationname": "to"}
+        columns={"fromApplicationname": "from", "applicationname": "to"}
     )
 
-    return counts
+    return counts.to_dict("records")
 
 
 if __name__ == "__main__":
