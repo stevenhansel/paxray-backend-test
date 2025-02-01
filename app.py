@@ -59,14 +59,14 @@ def index():
 
 @app.route("/copyPasteAnalysis")
 def copyPasteAnalysis():
-    query = (
+    data = (
         UILog.query.join(UILog.app_log)
         .with_entities(
             UILog.timestamp,
-            UILog.name,
             UILog.eventtype,
-            AppLog.applicationname,
             UILog.userid,
+            UILog.acceleratorkey,
+            AppLog.applicationname,
         )
         .filter(
             or_(
@@ -75,18 +75,47 @@ def copyPasteAnalysis():
             )
         )
         .order_by(UILog.timestamp)
+        .all()
     )
-    data = query.all()
 
-    print(data)
-
-    # TODO: Perform aggregation with pandas
-    _df = pd.DataFrame(data)
-    """
+    df = pd.DataFrame(data)
 
     """
+    Add another auxiliary column 'from_applicationname',
+    to prefill the application name of the last copied/cut eventtype into all of the rows
+    """
+    df["from_applicationname"] = (
+        df["applicationname"]
+        .where(
+            df["eventtype"].isin(["CTRL + C", "CTRL + X"])
+            | ((df["eventtype"] == "Left-Down") & (df["acceleratorkey"] == "STRG+C"))
+        )
+        .groupby(df["userid"])
+        .ffill()
+    )
 
-    return data
+    """
+    Filter such that df only contains the eventtype of 'CTRL + V'.
+    Note that now df contains 'from_applicationname'
+    which will contain the pair of the last copied/cut applicationname
+    """
+    paste_events = df[
+        (df["eventtype"] == "CTRL + V") & (df["from_applicationname"].notna())
+    ]
+
+    """
+    Group paste_events by from_applicationname and applicationname and perform count aggregation
+    """
+    counts = (
+        paste_events.groupby(["from_applicationname", "applicationname"])
+        .size()
+        .reset_index(name="count")
+    )
+    counts = counts.rename(
+        columns={"from_applicationname": "from", "applicationname": "to"}
+    )
+
+    return counts.to_dict("records")
 
 
 if __name__ == "__main__":
