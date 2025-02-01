@@ -1,15 +1,20 @@
+import os
+import pandas as pd
 from datetime import datetime
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Mapped, mapped_column
 from dataclasses import dataclass
 
 
 app = Flask(__name__)
+basedir = os.path.abspath(os.path.dirname(__file__))
+app.config[
+    "SQLALCHEMY_DATABASE_URI"
+] = f"sqlite:///{os.path.join(basedir, 'testdata.db')}"
 
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///testdata.db"
 db = SQLAlchemy(app)
-
 
 #### SPACE FOR DATABASE STUFF ####
 
@@ -35,7 +40,7 @@ class UILog(db.Model):
     appid: int
     eventtype: str
     name: str
-    accelerator: str
+    acceleratorkey: str
     timestamp: datetime
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -43,7 +48,7 @@ class UILog(db.Model):
     appid: Mapped[str] = mapped_column(nullable=False)
     eventtype: Mapped[str] = mapped_column(nullable=False)
     name: Mapped[str] = mapped_column(nullable=False)
-    accelerator: Mapped[str] = mapped_column(nullable=False)
+    acceleratorkey: Mapped[str] = mapped_column(nullable=False)
     timestamp: Mapped[datetime] = mapped_column(nullable=False)
 
 
@@ -57,8 +62,18 @@ def index():
 
 @app.route("/copyPasteAnalysis")
 def copyPasteAnalysis():
-    # TODO
-    return {}
+    query = UILog.query.filter(
+        or_(
+            UILog.eventtype.in_(["CTRL + C", "CTRL + X", "CTRL + V"]),
+            and_(UILog.eventtype == "Left-Down", UILog.acceleratorkey == "STRG+C"),
+        )
+    )
+    data = query.all()
+
+    # TODO: Perform aggregation with pandas
+    _df = pd.DataFrame(data)
+
+    return data
 
 
 if __name__ == "__main__":
